@@ -80,6 +80,19 @@
       display: none;
     }
 
+    .phone.figma-cards .status,
+    .phone.figma-cards .hero,
+    .phone.figma-cards .search-card,
+    .phone.figma-cards .quick-tools,
+    .phone.figma-cards .persona-module {
+      display: none;
+    }
+
+    .phone.figma-cards .phone-scroll {
+      overflow-y: visible;
+      padding-top: 16px;
+    }
+
     .status {
       display: flex;
       justify-content: space-between;
@@ -3428,6 +3441,7 @@
 
   <script>
     const phone = document.querySelector(".phone");
+    const phoneScroll = document.querySelector(".phone-scroll");
     const toast = document.querySelector("[data-toast]");
     const editorSheet = document.querySelector("[data-editor-sheet]");
     const searchSheet = document.querySelector("[data-search-sheet]");
@@ -4462,12 +4476,41 @@
     const roleHashAliases = {
       home: "business",
       business: "business",
+      cards: "business",
+      archive: "business",
+      profiles: "business",
+      "business-card": "business",
       parentChild: "parentChild",
+      "parentChild-card": "parentChild",
       family: "parentChild",
+      "family-card": "parentChild",
       child: "parentChild",
       elderly: "elderly",
+      "elderly-card": "elderly",
       elder: "elderly",
-      personal: "personal"
+      personal: "personal",
+      "personal-card": "personal",
+      "figma-cards": "business"
+    };
+
+    const roleScrollAliases = {
+      home: { role: "business", top: 0 },
+      business: { role: "business", target: "business", offset: 0 },
+      "business-card": { role: "business", target: "business", offset: 0 },
+      archive: { role: "business", target: "business", offset: -118 },
+      profiles: { role: "business", target: "business", offset: 0 },
+      cards: { role: "business", target: "parentChild", offset: -255 },
+      parentChild: { role: "parentChild", target: "parentChild", offset: 0 },
+      "parentChild-card": { role: "parentChild", target: "parentChild", offset: 0 },
+      family: { role: "parentChild", target: "parentChild", offset: 0 },
+      "family-card": { role: "parentChild", target: "parentChild", offset: 0 },
+      child: { role: "parentChild", target: "parentChild", offset: 0 },
+      elderly: { role: "elderly", target: "elderly", offset: 0 },
+      "elderly-card": { role: "elderly", target: "elderly", offset: 0 },
+      elder: { role: "elderly", target: "elderly", offset: 0 },
+      personal: { role: "personal", target: "personal", offset: 0 },
+      "personal-card": { role: "personal", target: "personal", offset: 0 },
+      "figma-cards": { role: "business", target: "business", offset: 0, figmaCards: true }
     };
 
     function getRoleFromHash() {
@@ -4475,6 +4518,12 @@
       if (!rawHash) return "business";
       const normalizedHash = rawHash.replace(/^role=/, "");
       return roleHashAliases[normalizedHash] || "business";
+    }
+
+    function getHashState() {
+      const rawHash = decodeURIComponent(window.location.hash.replace(/^#/, "")).trim();
+      const normalizedHash = rawHash.replace(/^role=/, "") || "business";
+      return roleScrollAliases[normalizedHash] || { role: getRoleFromHash(), target: getRoleFromHash(), offset: 0 };
     }
 
     function updateRoleHash(roleKey, replace = false) {
@@ -4488,7 +4537,15 @@
     }
 
     function applyRoleFromHash() {
-      setRole(getRoleFromHash(), { skipHash: true, behavior: "auto" });
+      const state = getHashState();
+      phone.classList.toggle("figma-cards", Boolean(state.figmaCards));
+      setRole(state.role, {
+        skipHash: true,
+        behavior: "auto",
+        targetRole: state.target,
+        offset: state.offset,
+        top: state.top
+      });
     }
 
     function renderRolePrefCards(profile) {
@@ -4923,8 +4980,23 @@
       updatePersonaNavActive();
       if (!options.skipHash) updateRoleHash(roleKey);
       requestAnimationFrame(() => {
-        const target = personaCardList.querySelector(`[data-persona-card="${roleKey}"]`);
-        if (target) target.scrollIntoView({ behavior: scrollBehavior, block: "start" });
+        const targetRole = options.targetRole || roleKey;
+        const target = personaCardList.querySelector(`[data-persona-card="${targetRole}"]`);
+        const scrollToTarget = () => {
+          if (!phoneScroll) return;
+          if (Number.isFinite(options.top)) {
+            phoneScroll.scrollTo({ top: Math.max(options.top, 0), behavior: scrollBehavior });
+            return;
+          }
+          if (!target) return;
+          const targetRect = target.getBoundingClientRect();
+          const scrollRect = phoneScroll.getBoundingClientRect();
+          const top = phoneScroll.scrollTop + targetRect.top - scrollRect.top + (options.offset || 0);
+          phoneScroll.scrollTo({ top: Math.max(top, 0), behavior: scrollBehavior });
+        };
+        scrollToTarget();
+        setTimeout(scrollToTarget, 80);
+        setTimeout(scrollToTarget, 260);
       });
     }
 
